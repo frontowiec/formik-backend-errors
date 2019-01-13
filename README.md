@@ -35,6 +35,7 @@ class SampleForm extends Component<
           <ErrorMessage name="person.age" />
           <Field name="isActive" type="checkbox" />
           <ErrorMessage name="isActive" />
+          {/*1st call setBackendErrors to create backend errors state*/}
           <button
             onClick={() => {
               this.props.setBackendErrors(
@@ -81,6 +82,7 @@ export const backendErrors = {
 };
 
 export default compose<any, any>(
+  /*2nd use withBackedErrors to pass formik backend errors as prop, if backend errors structure is not as FormikErrors then use function to map values*/
   withBackedErrors<ISampleForm>(errors => {
     return transform(
       errors,
@@ -104,6 +106,7 @@ export default compose<any, any>(
       console.log("submit");
     },
     validate: (values, { validateBackendErrorsCallback }) => {
+      /*3rd tell fromik to validate backend errors*/
       return validateBackendErrorsCallback();
     },
     validationSchema: validationSchema
