@@ -1,44 +1,113 @@
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# Example of usage `withBackendErrors`
 
-## Available Scripts
+```json
+import * as React from "react";
+import { ErrorMessage, Field, Form, FormikProps, withFormik } from "formik";
+import { Component } from "react";
+import * as Yup from "yup";
+import { compose } from "recompose";
+import { IWithBackedErrors, withBackedErrors } from "./withBackendErrors";
+import { set, transform } from "lodash";
 
-In the project directory, you can run:
+interface IPerson {
+  name: string;
+  age: number;
+}
 
-### `npm start`
+interface ISampleForm {
+  person: IPerson;
+  isActive: boolean;
+}
 
-Runs the app in the development mode.<br>
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+class SampleForm extends Component<
+  FormikProps<ISampleForm> & IWithBackedErrors
+> {
+  render() {
+    const { values, errors, status } = this.props;
 
-The page will reload if you make edits.<br>
-You will also see any lint errors in the console.
+    return (
+      <div>
+        <Form>
+          <label>Name</label>
+          <Field name="person.name" />
+          <ErrorMessage name="person.name" />
+          <Field name="person.age" type="number" />
+          <ErrorMessage name="person.age" />
+          <Field name="isActive" type="checkbox" />
+          <ErrorMessage name="isActive" />
+          <button
+            onClick={() => {
+              this.props.setBackendErrors(
+                backendErrors.errors.fields,
+                this.props.setTouched
+              );
+            }}
+            type="button"
+          >
+            Validate form
+          </button>
+          <button type="submit" disabled={!this.props.isValid}>
+            Send sample form
+          </button>
+        </Form>
+        <h5>Errors:</h5>
+        <pre>{JSON.stringify(errors, null, 2)}</pre>
+        <h5>Values:</h5>
+        <pre>{JSON.stringify(values, null, 2)}</pre>
+      </div>
+    );
+  }
+}
 
-### `npm test`
+const validationSchema = Yup.object<ISampleForm>().shape({
+  person: Yup.object<IPerson>().shape({
+    name: Yup.string().required("Field is required."),
+    age: Yup.number()
+      .min(18, "Max age is 18")
+      .max(60, "Min age is 60")
+      .required("Field is required.")
+  }),
+  isActive: Yup.boolean()
+});
 
-Launches the test runner in the interactive watch mode.<br>
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+export const backendErrors = {
+  message: "Validation error",
+  errors: {
+    fields: {
+      "person.name": ["person.name.notBlank", "person.name.isExist"],
+      "person.age": ["person.age.notBlank"]
+    }
+  }
+};
 
-### `npm run build`
+export default compose<any, any>(
+  withBackedErrors<ISampleForm>(errors => {
+    return transform(
+      errors,
+      (result, values: string[], key: string) => {
+        set(result, key, values.join(" "));
+      },
+      {}
+    );
+  }),
+  withFormik<IWithBackedErrors, ISampleForm>({
+    mapPropsToValues() {
+      return {
+        person: {
+          name: "",
+          age: 0
+        },
+        isActive: false
+      };
+    },
+    handleSubmit() {
+      console.log("submit");
+    },
+    validate: (values, { validateBackendErrorsCallback }) => {
+      return validateBackendErrorsCallback();
+    },
+    validationSchema: validationSchema
+  })
+)(SampleForm);
 
-Builds the app for production to the `build` folder.<br>
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.<br>
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (Webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+```
