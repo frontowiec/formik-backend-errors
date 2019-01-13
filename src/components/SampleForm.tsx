@@ -5,6 +5,7 @@ import * as Yup from "yup";
 import { compose } from "recompose";
 import { IWithBackedErrors, withBackedErrors } from "./withBackendErrors";
 import { mockBackendErrors } from "./mockBackendErrors";
+import { transformBackendErrors } from "./utils";
 import { mockBackendErrorsTranslations } from "./mockBackendErrorsTranslations";
 
 interface IPerson {
@@ -61,18 +62,18 @@ class SampleForm extends Component<
 
 const validationSchema = Yup.object<ISampleForm>().shape({
   person: Yup.object<IPerson>().shape({
-    name: Yup.string().required("Pole jest wymagane."),
+    name: Yup.string().required("Field is required."),
     age: Yup.number()
-      .min(18, "Minimalny wiek to 18")
-      .max(60, "Maksymalny wiek to 60")
-      .required("Pole jest wymagane.")
+      .min(18, "Max age is 18")
+      .max(60, "Min age is 60")
+      .required("Field is required.")
   }),
   isActive: Yup.boolean()
 });
 
 export default compose<any, any>(
-  withBackedErrors<ISampleForm>({
-    translations: mockBackendErrorsTranslations
+  withBackedErrors<ISampleForm>(errors => {
+    return transformBackendErrors(errors, mockBackendErrorsTranslations);
   }),
   withFormik<IWithBackedErrors, ISampleForm>({
     mapPropsToValues() {

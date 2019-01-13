@@ -1,47 +1,29 @@
 import * as React from "react";
 import { Component, ComponentType } from "react";
 import { FormikTouched, getActiveElement } from "formik";
-import { omit, set, transform } from "lodash";
-
-export interface ITranslations {
-  [key: string]: {
-    id: string;
-    defaultMessage: string;
-  };
-}
+import { set, transform, omit } from "lodash";
 
 type setTouched = <T = object>(touched: FormikTouched<T>) => void;
 
-type setBackendErrors = (
-  fields: IBackendErrors,
-  setTouched: setTouched
-) => void;
+type setBackendErrors = (backendErrors: object, setTouched: setTouched) => void;
 
 export interface IWithBackedErrors {
   backendErrors: object;
-  fields: IBackendErrors;
   setBackendErrors: setBackendErrors;
   removeBackendError: (path: string) => void;
   validateBackendErrorsCallback: () => object;
 }
 
-export interface IBackendErrors {
-  [key: string]: Array<string>;
-}
+type mapErrorsFn = (errors: any) => object;
 
-export interface IWithBackendErrorsOptions {
-  translations: ITranslations;
-}
+const defaultMapErrorFn = (errors: object) => errors;
 
-export const withBackedErrors = <T extends object>({
-  translations
-}: IWithBackendErrorsOptions) => (
-  WrappedComponent: ComponentType<IWithBackedErrors>
-) =>
+export const withBackedErrors = <T extends object>(
+  mapErrors: mapErrorsFn = defaultMapErrorFn
+) => (WrappedComponent: ComponentType<IWithBackedErrors>) =>
   class extends Component {
     state = {
-      backendErrors: {},
-      fields: {}
+      backendErrors: {}
     };
 
     render() {
@@ -56,24 +38,29 @@ export const withBackedErrors = <T extends object>({
       );
     }
 
-    setBackendErrors: setBackendErrors = (fields, setTouched) => {
+    setBackendErrors: setBackendErrors = (backendErrors, setTouched) => {
       this.setState(() => {
-        const backendErrors = transformBackendErrors(fields, translations);
-        setTouched(backendErrors);
+        const errors = mapErrors(backendErrors);
+        setTouched(errors);
         return {
-          backendErrors,
-          fields
+          backendErrors: errors
         };
       });
     };
 
     removeBackendError = (path: string) => {
       this.setState((state: IWithBackedErrors) => {
-        const fields = omit(state.fields, path);
-        return {
-          backendErrors: transformBackendErrors(fields, translations),
-          fields
-        };
+        const flatErrors = flattenObject(state.backendErrors);
+        const errorWithoutPath = omit(flatErrors, path);
+        const errors = transform(
+          errorWithoutPath,
+          (result, value, key) => {
+            set(result, key, value);
+          },
+          {}
+        );
+
+        return { backendErrors: errors };
       });
     };
 
@@ -93,32 +80,22 @@ export const withBackedErrors = <T extends object>({
     };
   };
 
-export const transformBackendErrors = (
-  backendErrors: IBackendErrors,
-  translations: ITranslations
-) => {
-  return transform(
-    backendErrors,
-    (result, values, key) => {
-      translateBackendError(key, values, result, translations);
-    },
-    {}
-  );
-};
+const flattenObject = function(ob: any) {
+  const toReturn: any = {};
 
-export const translateBackendError = (
-  key: string,
-  values: string[],
-  result: object,
-  translations: ITranslations
-) => {
-  if (translations[key]) {
-    set(result, key, translations[key].defaultMessage);
-  } else {
-    console.warn(
-      `Missing translation "${key}": {id: "${key}_backend_error", defaultMessage: 
-            "${values.join("_")}"}`
-    );
-    set(result, key, values.join(" "));
+  for (const i in ob) {
+    if (!ob.hasOwnProperty(i)) continue;
+
+    if (typeof ob[i] == "object") {
+      const flatObject = flattenObject(ob[i]);
+      for (const x in flatObject) {
+        if (!flatObject.hasOwnProperty(x)) continue;
+
+        toReturn[i + "." + x] = flatObject[x];
+      }
+    } else {
+      toReturn[i] = ob[i];
+    }
   }
+  return toReturn;
 };
