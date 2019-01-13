@@ -1,6 +1,6 @@
 # Example of usage `withBackendErrors`
 
-```json
+```js
 import * as React from "react";
 import { ErrorMessage, Field, Form, FormikProps, withFormik } from "formik";
 import { Component } from "react";
